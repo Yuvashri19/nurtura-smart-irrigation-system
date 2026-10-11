@@ -1,0 +1,6 @@
+{
+  "name": "NURTURA Smart Irrigation",
+  "description": "Interactive smart irrigation controller with real-time sensor simulation, automated watering state machine, flow monitoring, and fault detection.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

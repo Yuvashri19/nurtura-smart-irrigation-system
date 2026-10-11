@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Authenticated user profile and connected controller information.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "maxLength": 100, "description": "Display name or handle" },
+        "role": { "type": "string", "maxLength": 50, "description": "User role e.g. Garden Administrator" },
+        "controllerNodeId": { "type": "string", "maxLength": 64, "description": "Connected hardware node ID e.g. balc-esp32-node1" },
+        "createdAt": { "type": "string", "description": "ISO timestamp or server time" }
+      },
+      "required": ["id", "email"]
+    },
+    "UserSettings": {
+      "title": "User Irrigation Settings",
+      "description": "Per-user active crop selection, target volume, and autonomous watering preferences.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID" },
+        "selectedPlantId": { "type": "string", "maxLength": 50, "description": "Active plant species ID e.g. tomato" },
+        "selectedStage": { "type": "string", "maxLength": 30, "description": "Growth stage e.g. Vegetative" },
+        "targetVolume": { "type": "number", "description": "Target water dosing volume in mL" },
+        "autoWateringEnabled": { "type": "boolean", "description": "Autonomous closed-loop mode toggle" },
+        "updatedAt": { "type": "string", "description": "Timestamp of last modification" }
+      },
+      "required": ["userId", "selectedPlantId", "selectedStage"]
+    },
+    "WateringEvent": {
+      "title": "Watering Cycle History Event",
+      "description": "Telemetry record of a completed, interrupted, or faulted irrigation cycle.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique event identifier" },
+        "userId": { "type": "string", "description": "Owner UID" },
+        "timestamp": { "type": "string", "maxLength": 32, "description": "Readable timestamp e.g. 10:38 AM" },
+        "waterDelivered": { "type": "number", "description": "Volume of water delivered in mL" },
+        "targetVolume": { "type": "number", "description": "Target volume in mL" },
+        "durationMinutes": { "type": "number", "description": "Duration of cycle in minutes" },
+        "status": { "type": "string", "enum": ["complete", "interrupted", "fault", "low_flow"], "description": "Final state of cycle" },
+        "statusLabel": { "type": "string", "maxLength": 50, "description": "Visual label e.g. ✓ Complete" },
+        "notes": { "type": "string", "maxLength": 500, "description": "Diagnostics or telemetry log details" },
+        "plantName": { "type": "string", "maxLength": 100, "description": "Target plant name" },
+        "stage": { "type": "string", "maxLength": 50, "description": "Growth stage during cycle" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["userId", "waterDelivered", "targetVolume", "status"]
+    },
+    "Alert": {
+      "title": "Incident Alert",
+      "description": "Safety warning or fault logged by the local irrigation system.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique alert identifier" },
+        "userId": { "type": "string", "description": "Owner UID" },
+        "title": { "type": "string", "maxLength": 100, "description": "Short alert title" },
+        "message": { "type": "string", "maxLength": 300, "description": "Detailed explanation" },
+        "type": { "type": "string", "enum": ["success", "warning", "error", "info"], "description": "Alert severity" },
+        "timestamp": { "type": "string", "maxLength": 32, "description": "Time of occurrence" }
+      },
+      "required": ["userId", "title", "message", "type"]
+    },
+    "GardenSetup": {
+      "title": "Garden Installation Setup",
+      "description": "First-time garden onboarding configuration including plant count and geographical installation location.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID" },
+        "setupCompleted": { "type": "boolean", "description": "Whether first-time setup wizard is completed" },
+        "plantCount": { "type": "number", "description": "Number of plants grown in the garden" },
+        "latitude": { "type": "number", "description": "Geographical latitude in decimal degrees" },
+        "longitude": { "type": "number", "description": "Geographical longitude in decimal degrees" },
+        "locationSource": { "type": "string", "maxLength": 100, "description": "Source of coordinates e.g. browser_geolocation" },
+        "locationUpdatedAt": { "type": "string", "description": "Timestamp when coordinates were acquired" },
+        "createdAt": { "type": "string", "description": "Setup creation timestamp" },
+        "updatedAt": { "type": "string", "description": "Timestamp of last modification" }
+      },
+      "required": ["userId", "setupCompleted", "plantCount", "latitude", "longitude"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Individual user document containing profile and controller configuration."
+    },
+    "/users/{userId}/setup/{setupId}": {
+      "schema": "GardenSetup",
+      "description": "Installation setup parameters, plant count, and geographic coordinates for atmospheric ET₀ modeling."
+    },
+    "/users/{userId}/settings/{settingId}": {
+      "schema": "UserSettings",
+      "description": "Personalized crop stage preferences and autonomous mode calibration."
+    },
+    "/users/{userId}/history/{historyId}": {
+      "schema": "WateringEvent",
+      "description": "Historical irrigation records for the authenticated user."
+    },
+    "/users/{userId}/alerts/{alertId}": {
+      "schema": "Alert",
+      "description": "Safety notifications and fault notices for the user."
+    }
+  }
+}

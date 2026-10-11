@@ -1,0 +1,171 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidUser(data) {
+      return data.id == request.auth.uid &&
+             data.email is string &&
+             data.email.size() <= 128 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('role' in data) || (data.role is string && data.role.size() <= 50)) &&
+             (!('controllerNodeId' in data) || (data.controllerNodeId is string && data.controllerNodeId.size() <= 64)) &&
+             (!('setupCompleted' in data) || (data.setupCompleted is bool)) &&
+             (!('plantCount' in data) || (data.plantCount is number && data.plantCount >= 1 && data.plantCount <= 100)) &&
+             (!('latitude' in data) || (data.latitude is number && data.latitude >= -90 && data.latitude <= 90)) &&
+             (!('longitude' in data) || (data.longitude is number && data.longitude >= -180 && data.longitude <= 180)) &&
+             (!('setup' in data) || (data.setup is map));
+    }
+
+    function isValidSetup(data) {
+      return data.userId == request.auth.uid &&
+             (!('setupCompleted' in data) || (data.setupCompleted is bool)) &&
+             (!('plantCount' in data) || (data.plantCount is number && data.plantCount >= 1 && data.plantCount <= 100)) &&
+             (!('latitude' in data) || (data.latitude is number && data.latitude >= -90 && data.latitude <= 90)) &&
+             (!('longitude' in data) || (data.longitude is number && data.longitude >= -180 && data.longitude <= 180)) &&
+             (!('locationSource' in data) || (data.locationSource is string && data.locationSource.size() <= 100)) &&
+             (!('locationUpdatedAt' in data) || (data.locationUpdatedAt is string && data.locationUpdatedAt.size() <= 60) || (data.locationUpdatedAt is timestamp)) &&
+             (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 60) || (data.createdAt is timestamp)) &&
+             (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 60) || (data.updatedAt is timestamp));
+    }
+
+    function isValidUserSettings(data) {
+      return data.userId == request.auth.uid &&
+             (!('selectedPlantId' in data) || (data.selectedPlantId is string && data.selectedPlantId.size() <= 50)) &&
+             (!('selectedStage' in data) || (data.selectedStage is string && data.selectedStage.size() <= 30)) &&
+             (!('targetVolume' in data) || (data.targetVolume is number && data.targetVolume >= 0 && data.targetVolume <= 5000)) &&
+             (!('autoWateringEnabled' in data) || (data.autoWateringEnabled is bool)) &&
+             (!('latitude' in data) || (data.latitude is number && data.latitude >= -90 && data.latitude <= 90)) &&
+             (!('longitude' in data) || (data.longitude is number && data.longitude >= -180 && data.longitude <= 180)) &&
+             (!('plantCount' in data) || (data.plantCount is number && data.plantCount >= 1 && data.plantCount <= 100));
+    }
+
+    function isValidWateringEvent(data) {
+      return data.userId == request.auth.uid &&
+             data.waterDelivered is number &&
+             data.waterDelivered >= 0 &&
+             data.targetVolume is number &&
+             data.targetVolume >= 0 &&
+             data.status in ['complete', 'interrupted', 'fault', 'low_flow'] &&
+             (!('durationMinutes' in data) || (data.durationMinutes is number && data.durationMinutes >= 0)) &&
+             (!('plantName' in data) || (data.plantName is string && data.plantName.size() <= 100)) &&
+             (!('stage' in data) || (data.stage is string && data.stage.size() <= 50)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    function isValidAlert(data) {
+      return data.userId == request.auth.uid &&
+             data.title is string &&
+             data.title.size() <= 100 &&
+             data.message is string &&
+             data.message.size() <= 300 &&
+             data.type in ['success', 'warning', 'error', 'info'];
+    }
+
+    function isValidCustomPlant(data) {
+      return data.userId == request.auth.uid &&
+             data.name is string &&
+             data.name.size() > 0 &&
+             data.name.size() <= 100 &&
+             (!('areaM2' in data) || (data.areaM2 is number && data.areaM2 >= 0 && data.areaM2 <= 1000)) &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
+             (!('growthStage' in data) || (data.growthStage is string && data.growthStage.size() <= 50)) &&
+             (!('moisturePreference' in data) || (data.moisturePreference is string && data.moisturePreference.size() <= 20)) &&
+             (!('minMoisture' in data) || (data.minMoisture is number && data.minMoisture >= 0 && data.minMoisture <= 100)) &&
+             (!('targetMoisture' in data) || (data.targetMoisture is number && data.targetMoisture >= 0 && data.targetMoisture <= 100)) &&
+             (!('maxMoisture' in data) || (data.maxMoisture is number && data.maxMoisture >= 0 && data.maxMoisture <= 100)) &&
+             (!('defaultWateringVolume' in data) || (data.defaultWateringVolume is number && data.defaultWateringVolume >= 0 && data.defaultWateringVolume <= 5000)) &&
+             (!('kc' in data) || data.kc == null || (data.kc is number && data.kc >= 0 && data.kc <= 5)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
+             (!('isCustom' in data) || (data.isCustom is bool));
+    }
+
+    function isValidEtRecord(data) {
+      return data.userId == request.auth.uid &&
+             data.date is string &&
+             data.date.size() >= 8 &&
+             data.date.size() <= 25 &&
+             data.dayOfYear is number &&
+             data.latitude is number &&
+             data.latitude >= -90 && data.latitude <= 90 &&
+             data.tmax is number &&
+             data.tmin is number &&
+             data.tmean is number &&
+             data.ra is number &&
+             data.et0 is number;
+    }
+
+    // User Profile Document
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming());
+      allow delete: if isOwner(userId);
+
+      // User Garden Setup Subcollection
+      match /setup/{setupId} {
+        allow get, list: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidSetup(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      // User Irrigation Settings Subcollection
+      match /settings/{settingId} {
+        allow get, list: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidUserSettings(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      // User Custom Plants Subcollection
+      match /plants/{plantId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidCustomPlant(incoming());
+        allow update: if isOwner(userId) && isValidCustomPlant(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      // User Evapotranspiration History Subcollection
+      match /etHistory/{dateId} {
+        allow get, list: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidEtRecord(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      // User Irrigation History Subcollection
+      match /history/{historyId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidWateringEvent(incoming());
+        allow update: if isOwner(userId) && isValidWateringEvent(incoming());
+        allow delete: if isOwner(userId);
+      }
+
+      // User Alerts Subcollection
+      match /alerts/{alertId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidAlert(incoming());
+        allow update, delete: if isOwner(userId);
+      }
+    }
+  }
+}
